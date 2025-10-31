@@ -1,4 +1,4 @@
-package com.dumbmessenger.*;
+package com.dumbmessenger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.warrenstrange.googleauth.GoogleAuthenticator;

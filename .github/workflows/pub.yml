@@ -1,0 +1,37 @@
+name: Publish Package to GitHub Packages
+
+on:
+  push:
+    branches: [ "main" ]
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v5
+
+    - name: Set up Java for publishing to GitHub Packages
+      uses: actions/setup-java@v5
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        cache: 'maven'
+        server-id: github
+        server-username: GITHUB_ACTOR
+        server-password: GITHUB_TOKEN
+
+    - name: Build and verify with Maven
+      run: mvn -B verify
+
+    - name: Publish to GitHub Packages
+      if: github.event_name == 'release' && github.event.action == 'created'
+      run: mvn -B deploy
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
