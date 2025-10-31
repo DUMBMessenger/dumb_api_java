@@ -24,8 +24,8 @@ jobs:
         distribution: 'temurin'
         cache: 'maven'
         server-id: github
-        server-username: GITHUB_ACTOR
-        server-password: GITHUB_TOKEN
+        server-username: debianrose # ya think someone else will be start action? nah.
+        server-password: TOKEN
 
     - name: Build and verify with Maven
       run: mvn -B verify
@@ -34,4 +34,4 @@ jobs:
       if: github.event_name == 'release' && github.event.action == 'created'
       run: mvn -B deploy
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
