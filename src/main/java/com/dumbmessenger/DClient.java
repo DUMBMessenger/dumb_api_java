@@ -7,11 +7,6 @@ import okhttp3.*;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
-import javax.activation.DataHandler;
-import javax.activation.DataSource;
-import javax.activation.FileDataSource;
-import javax.mail.*;
-import javax.mail.internet.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -27,8 +22,8 @@ public class DClient {
     private final GoogleAuthenticator authenticator;
     private String authToken;
     private MessengerWebSocketClient webSocketClient;
-    private final Map<String, List<Consumer<Message>>> messageListeners;
-    private final List<Consumer<WebSocketEvent>> eventListeners;
+    private final Map<String, List<Consumer<Models.Message>>> messageListeners;
+    private final List<Consumer<Models.WebSocketEvent>> eventListeners;
 
     public DClient(String baseUrl) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
@@ -39,8 +34,7 @@ public class DClient {
         this.eventListeners = new ArrayList<>();
     }
 
-
-    public AuthResponse register(String username, String password) throws IOException {
+    public Models.AuthResponse register(String username, String password) throws IOException {
         Map<String, String> request = Map.of(
             "username", username,
             "password", password
@@ -57,11 +51,11 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(httpRequest).execute()) {
-            return objectMapper.readValue(response.body().string(), AuthResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
         }
     }
 
-    public AuthResponse login(String username, String password, String twoFactorToken) throws IOException {
+    public Models.AuthResponse login(String username, String password, String twoFactorToken) throws IOException {
         Map<String, String> request = new HashMap<>();
         request.put("username", username);
         request.put("password", password);
@@ -80,7 +74,7 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(httpRequest).execute()) {
-            AuthResponse authResponse = objectMapper.readValue(response.body().string(), AuthResponse.class);
+            Models.AuthResponse authResponse = objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
             if (authResponse.success && authResponse.token != null) {
                 this.authToken = authResponse.token;
             }
@@ -88,7 +82,33 @@ public class DClient {
         }
     }
 
-    public TwoFAResponse setup2FA() throws IOException {
+    public Models.AuthResponse verify2FALogin(String username, String sessionId, String twoFactorToken) throws IOException {
+        Map<String, String> request = Map.of(
+            "username", username,
+            "sessionId", sessionId,
+            "twoFactorToken", twoFactorToken
+        );
+
+        RequestBody body = RequestBody.create(
+            objectMapper.writeValueAsString(request),
+            MediaType.parse("application/json")
+        );
+
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/2fa/verify-login")
+            .post(body)
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            Models.AuthResponse authResponse = objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
+            if (authResponse.success && authResponse.token != null) {
+                this.authToken = authResponse.token;
+            }
+            return authResponse;
+        }
+    }
+
+    public Models.TwoFAResponse setup2FA() throws IOException {
         Request httpRequest = new Request.Builder()
             .url(baseUrl + "api/2fa/setup")
             .header("Authorization", "Bearer " + authToken)
@@ -96,11 +116,11 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(httpRequest).execute()) {
-            return objectMapper.readValue(response.body().string(), TwoFAResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.TwoFAResponse.class);
         }
     }
 
-    public AuthResponse enable2FA(String token) throws IOException {
+    public Models.AuthResponse enable2FA(String token) throws IOException {
         Map<String, String> request = Map.of("token", token);
 
         RequestBody body = RequestBody.create(
@@ -115,10 +135,40 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(httpRequest).execute()) {
-            return objectMapper.readValue(response.body().string(), AuthResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
         }
     }
 
+    public Models.AuthResponse disable2FA(String password) throws IOException {
+        Map<String, String> request = Map.of("password", password);
+
+        RequestBody body = RequestBody.create(
+            objectMapper.writeValueAsString(request),
+            MediaType.parse("application/json")
+        );
+
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/2fa/disable")
+            .header("Authorization", "Bearer " + authToken)
+            .post(body)
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
+        }
+    }
+
+    public Models.AuthResponse get2FAStatus() throws IOException {
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/2fa/status")
+            .header("Authorization", "Bearer " + authToken)
+            .get()
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
+        }
+    }
 
     public String generateTOTPSecret() {
         GoogleAuthenticatorKey key = authenticator.createCredentials();
@@ -129,8 +179,12 @@ public class DClient {
         return authenticator.authorize(secret, Integer.parseInt(token));
     }
 
+    public String getTOTPCode(String secret) {
+        int code = authenticator.getTotpPassword(secret);
+        return String.format("%06d", code);
+}
 
-    public ChannelResponse createChannel(String name, String customId) throws IOException {
+    public Models.ChannelResponse createChannel(String name, String customId) throws IOException {
         Map<String, String> request = new HashMap<>();
         request.put("name", name);
         if (customId != null) {
@@ -149,11 +203,11 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(httpRequest).execute()) {
-            return objectMapper.readValue(response.body().string(), ChannelResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.ChannelResponse.class);
         }
     }
 
-    public ChannelListResponse getChannels() throws IOException {
+    public Models.ChannelListResponse getChannels() throws IOException {
         Request httpRequest = new Request.Builder()
             .url(baseUrl + "api/channels")
             .header("Authorization", "Bearer " + authToken)
@@ -161,11 +215,105 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(httpRequest).execute()) {
-            return objectMapper.readValue(response.body().string(), ChannelListResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.ChannelListResponse.class);
         }
     }
 
-    public MessageResponse sendMessage(String channel, String text, String replyTo, 
+    public Models.ChannelListResponse searchChannels(String query) throws IOException {
+        Map<String, String> request = Map.of("query", query);
+
+        RequestBody body = RequestBody.create(
+            objectMapper.writeValueAsString(request),
+            MediaType.parse("application/json")
+        );
+
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/channels/search")
+            .header("Authorization", "Bearer " + authToken)
+            .post(body)
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.ChannelListResponse.class);
+        }
+    }
+
+    public Models.AuthResponse joinChannel(String channel) throws IOException {
+        Map<String, String> request = Map.of("channel", channel);
+
+        RequestBody body = RequestBody.create(
+            objectMapper.writeValueAsString(request),
+            MediaType.parse("application/json")
+        );
+
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/channels/join")
+            .header("Authorization", "Bearer " + authToken)
+            .post(body)
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
+        }
+    }
+
+    public Models.AuthResponse leaveChannel(String channel) throws IOException {
+        Map<String, String> request = Map.of("channel", channel);
+
+        RequestBody body = RequestBody.create(
+            objectMapper.writeValueAsString(request),
+            MediaType.parse("application/json")
+        );
+
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/channels/leave")
+            .header("Authorization", "Bearer " + authToken)
+            .post(body)
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
+        }
+    }
+
+    public Models.ChannelMembersResponse getChannelMembers(String channel) throws IOException {
+        HttpUrl.Builder urlBuilder = HttpUrl.parse(baseUrl + "api/channels/members").newBuilder()
+            .addQueryParameter("channel", channel);
+
+        Request httpRequest = new Request.Builder()
+            .url(urlBuilder.build())
+            .header("Authorization", "Bearer " + authToken)
+            .get()
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.ChannelMembersResponse.class);
+        }
+    }
+
+    public Models.ChannelResponse updateChannel(String name, String newName) throws IOException {
+        Map<String, String> request = Map.of(
+            "name", name,
+            "newName", newName
+        );
+
+        RequestBody body = RequestBody.create(
+            objectMapper.writeValueAsString(request),
+            MediaType.parse("application/json")
+        );
+
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/channels")
+            .header("Authorization", "Bearer " + authToken)
+            .method("PATCH", body)
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.ChannelResponse.class);
+        }
+    }
+
+    public Models.MessageResponse sendMessage(String channel, String text, String replyTo, 
                                      boolean encrypt) throws IOException {
         Map<String, Object> request = new HashMap<>();
         request.put("channel", channel);
@@ -187,11 +335,33 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(httpRequest).execute()) {
-            return objectMapper.readValue(response.body().string(), MessageResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.MessageResponse.class);
         }
     }
 
-    public MessageListResponse getMessages(String channel, int limit, String before) throws IOException {
+    public Models.MessageResponse sendVoiceOnly(String channel, String voiceMessage) throws IOException {
+        Map<String, String> request = Map.of(
+            "channel", channel,
+            "voiceMessage", voiceMessage
+        );
+
+        RequestBody body = RequestBody.create(
+            objectMapper.writeValueAsString(request),
+            MediaType.parse("application/json")
+        );
+
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/message/voice-only")
+            .header("Authorization", "Bearer " + authToken)
+            .post(body)
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.MessageResponse.class);
+        }
+    }
+
+    public Models.MessageListResponse getMessages(String channel, int limit, String before) throws IOException {
         HttpUrl.Builder urlBuilder = HttpUrl.parse(baseUrl + "api/messages").newBuilder()
             .addQueryParameter("channel", channel)
             .addQueryParameter("limit", String.valueOf(limit));
@@ -207,12 +377,23 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(httpRequest).execute()) {
-            return objectMapper.readValue(response.body().string(), MessageListResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.MessageListResponse.class);
         }
     }
 
+    public Models.MessageResponse getMessage(String messageId) throws IOException {
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/message/" + messageId)
+            .header("Authorization", "Bearer " + authToken)
+            .get()
+            .build();
 
-    public FileUploadResponse uploadFile(File file) throws IOException {
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.MessageResponse.class);
+        }
+    }
+
+    public Models.FileUploadResponse uploadFile(File file) throws IOException {
         RequestBody requestBody = new MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("file", file.getName(),
@@ -226,11 +407,11 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            return objectMapper.readValue(response.body().string(), FileUploadResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.FileUploadResponse.class);
         }
     }
 
-    public FileUploadResponse uploadAvatar(File imageFile) throws IOException {
+    public Models.FileUploadResponse uploadAvatar(File imageFile) throws IOException {
         RequestBody requestBody = new MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("avatar", imageFile.getName(),
@@ -244,7 +425,29 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            return objectMapper.readValue(response.body().string(), FileUploadResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.FileUploadResponse.class);
+        }
+    }
+
+    public Models.VoiceUploadResponse uploadVoiceMessage(String channel, int duration) throws IOException {
+        Map<String, Object> request = Map.of(
+            "channel", channel,
+            "duration", duration
+        );
+
+        RequestBody body = RequestBody.create(
+            objectMapper.writeValueAsString(request),
+            MediaType.parse("application/json")
+        );
+
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/voice/upload")
+            .header("Authorization", "Bearer " + authToken)
+            .post(body)
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.VoiceUploadResponse.class);
         }
     }
 
@@ -269,8 +472,7 @@ public class DClient {
         });
     }
 
-
-    public AuthResponse sendVerificationEmail(String email) throws IOException {
+    public Models.AuthResponse sendVerificationEmail(String email) throws IOException {
         Map<String, String> request = Map.of("email", email);
 
         RequestBody body = RequestBody.create(
@@ -285,11 +487,11 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(httpRequest).execute()) {
-            return objectMapper.readValue(response.body().string(), AuthResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
         }
     }
 
-    public AuthResponse verifyEmail(String email, String code) throws IOException {
+    public Models.AuthResponse verifyEmail(String email, String code) throws IOException {
         Map<String, String> request = Map.of("email", email, "code", code);
 
         RequestBody body = RequestBody.create(
@@ -304,11 +506,11 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(httpRequest).execute()) {
-            return objectMapper.readValue(response.body().string(), AuthResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
         }
     }
 
-    public AuthResponse requestPasswordReset(String email) throws IOException {
+    public Models.AuthResponse requestPasswordReset(String email) throws IOException {
         Map<String, String> request = Map.of("email", email);
 
         RequestBody body = RequestBody.create(
@@ -322,10 +524,50 @@ public class DClient {
             .build();
 
         try (Response response = httpClient.newCall(httpRequest).execute()) {
-            return objectMapper.readValue(response.body().string(), AuthResponse.class);
+            return objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
         }
     }
 
+    public Models.AuthResponse resetPassword(String token, String newPassword) throws IOException {
+        Map<String, String> request = Map.of("token", token, "newPassword", newPassword);
+
+        RequestBody body = RequestBody.create(
+            objectMapper.writeValueAsString(request),
+            MediaType.parse("application/json")
+        );
+
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/auth/reset-password/confirm")
+            .post(body)
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
+        }
+    }
+
+    public Models.AuthResponse sendWebRTCOffer(String toUser, String offer, String channel) throws IOException {
+        Map<String, String> request = Map.of(
+            "toUser", toUser,
+            "offer", offer,
+            "channel", channel
+        );
+
+        RequestBody body = RequestBody.create(
+            objectMapper.writeValueAsString(request),
+            MediaType.parse("application/json")
+        );
+
+        Request httpRequest = new Request.Builder()
+            .url(baseUrl + "api/webrtc/offer")
+            .header("Authorization", "Bearer " + authToken)
+            .post(body)
+            .build();
+
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            return objectMapper.readValue(response.body().string(), Models.AuthResponse.class);
+        }
+    }
 
     public void connectWebSocket() {
         if (webSocketClient != null) {
@@ -344,18 +586,17 @@ public class DClient {
         }
     }
 
-    public void addMessageListener(String channel, Consumer<Message> listener) {
+    public void addMessageListener(String channel, Consumer<Models.Message> listener) {
         messageListeners.computeIfAbsent(channel, k -> new ArrayList<>()).add(listener);
     }
 
-    public void addEventListener(Consumer<WebSocketEvent> listener) {
+    public void addEventListener(Consumer<Models.WebSocketEvent> listener) {
         eventListeners.add(listener);
     }
 
     public boolean isWebSocketConnected() {
         return webSocketClient != null && webSocketClient.isOpen();
     }
-
 
     private class MessengerWebSocketClient extends WebSocketClient {
         public MessengerWebSocketClient(URI serverUri) {
@@ -364,18 +605,18 @@ public class DClient {
 
         @Override
         public void onOpen(ServerHandshake handshake) {
-            WebSocketEvent event = new WebSocketEvent("connected", "WebSocket connected successfully");
+            Models.WebSocketEvent event = new Models.WebSocketEvent("connected", "WebSocket connected successfully");
             eventListeners.forEach(listener -> listener.accept(event));
         }
 
         @Override
         public void onMessage(String message) {
             try {
-                WebSocketEvent event = objectMapper.readValue(message, WebSocketEvent.class);
+                Models.WebSocketEvent event = objectMapper.readValue(message, Models.WebSocketEvent.class);
                 
                 if ("message".equals(event.type) && "new".equals(event.action)) {
-                    Message msg = objectMapper.convertValue(event.data, Message.class);
-                    List<Consumer<Message>> listeners = messageListeners.get(msg.channel);
+                    Models.Message msg = objectMapper.convertValue(event.data, Models.Message.class);
+                    List<Consumer<Models.Message>> listeners = messageListeners.get(msg.channel);
                     if (listeners != null) {
                         listeners.forEach(listener -> listener.accept(msg));
                     }
@@ -389,17 +630,16 @@ public class DClient {
 
         @Override
         public void onClose(int code, String reason, boolean remote) {
-            WebSocketEvent event = new WebSocketEvent("disconnected", "WebSocket disconnected: " + reason);
+            Models.WebSocketEvent event = new Models.WebSocketEvent("disconnected", "WebSocket disconnected: " + reason);
             eventListeners.forEach(listener -> listener.accept(event));
         }
 
         @Override
         public void onError(Exception ex) {
-            WebSocketEvent event = new WebSocketEvent("error", "WebSocket error: " + ex.getMessage());
+            Models.WebSocketEvent event = new Models.WebSocketEvent("error", "WebSocket error: " + ex.getMessage());
             eventListeners.forEach(listener -> listener.accept(event));
         }
     }
-
 
     public String getAuthToken() {
         return authToken;
@@ -407,5 +647,9 @@ public class DClient {
 
     public void setAuthToken(String authToken) {
         this.authToken = authToken;
+    }
+
+    public boolean isAuthenticated() {
+        return authToken != null && !authToken.isEmpty();
     }
 }
