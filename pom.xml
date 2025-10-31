@@ -6,19 +6,27 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.dumbmessenger</groupId>
-    <artifactId>dclientapi</artifactId>
+    <artifactId>java-api</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>Dumb Messenger Java API</name>
     <description></description>
-    <url>https://github.com/dumbmessenger/dumb_api_java</url>
+    <url>https://github.com/dumbmessenger/dumb_java_api</url>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/dumbmessenger/dumb_api_java</url>
+        </repository>
+    </distributionManagement>
 
     <dependencies>
         <dependency>
@@ -71,6 +79,11 @@
                     <source>11</source>
                     <target>11</target>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.1</version>
             </plugin>
         </plugins>
     </build>
