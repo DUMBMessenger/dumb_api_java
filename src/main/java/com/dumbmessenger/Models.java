@@ -8,34 +8,34 @@ import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-class BaseResponse {
+public class BaseResponse {
     public boolean success;
     public String error;
     public String message;
 }
 
-class AuthResponse extends BaseResponse {
+public class AuthResponse extends BaseResponse {
     public String token;
     public boolean requires2FA;
     public String sessionId;
     public boolean twoFactorEnabled;
 }
 
-class TwoFAResponse extends BaseResponse {
+public class TwoFAResponse extends BaseResponse {
     public String secret;
     public String qrCodeUrl;
 }
 
-class ChannelResponse extends BaseResponse {
+public class ChannelResponse extends BaseResponse {
     public String channelId;
     public String channel;
 }
 
-class ChannelListResponse extends BaseResponse {
+public class ChannelListResponse extends BaseResponse {
     public List<Channel> channels;
 }
 
-class Channel {
+public class Channel {
     public String id;
     public String name;
     public String creator;
@@ -43,15 +43,15 @@ class Channel {
     public boolean customId;
 }
 
-class MessageResponse extends BaseResponse {
+public class MessageResponse extends BaseResponse {
     public Message message;
 }
 
-class MessageListResponse extends BaseResponse {
+public class MessageListResponse extends BaseResponse {
     public List<Message> messages;
 }
 
-class Message {
+public class Message {
     public String id;
     public String from;
     public String channel;
@@ -64,7 +64,7 @@ class Message {
     public Message replyToMessage;
 }
 
-class FileAttachment {
+public class FileAttachment {
     public String filename;
     public String originalName;
     public String mimetype;
@@ -72,20 +72,20 @@ class FileAttachment {
     public String downloadUrl;
 }
 
-class VoiceAttachment {
+public class VoiceAttachment {
     public String filename;
     public int duration;
     public String downloadUrl;
 }
 
-class FileUploadResponse extends BaseResponse {
+public class FileUploadResponse extends BaseResponse {
     public UploadedFile file;
     public String filename;
     public String avatarUrl;
     public String mimeType;
 }
 
-class UploadedFile {
+public class UploadedFile {
     public String id;
     public String filename;
     public String originalName;
@@ -96,7 +96,7 @@ class UploadedFile {
     public String downloadUrl;
 }
 
-class WebSocketEvent {
+public class WebSocketEvent {
     public String type;
     public String action;
     public String clientId;
@@ -111,7 +111,7 @@ class WebSocketEvent {
     }
 }
 
-class TOTPData {
+public class TOTPData {
     public String secret;
     public String qrCodeUrl;
 
