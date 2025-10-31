@@ -1,4 +1,4 @@
-package com.dumbmessenger.Models;
+package com.dumbmessenger;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
